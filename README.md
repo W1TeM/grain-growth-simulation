@@ -1,57 +1,57 @@
-# Fast Grain Growth Simulation
+# Microstructure Evolution Generator (ICME)
 
-A high-performance, Python-based scientific simulation of microstructure evolution and crystallization. The computational engine is fully optimized using NumPy vectorization and the Moore neighborhood.
+A high-performance, Python-based scientific simulation of microstructure evolution and crystallization. Designed as a synthetic data generator for Machine Learning models in materials science (e.g., Ultra-Fine Grained metals, porosity analysis). 
 
-## ✨ Features
+![Web Interface](assets/Interface.png)
 
-* **High Performance**: No nested `for` loops. Pure NumPy tensor operations.
-* **CLI Interface**: Fully configurable via command-line arguments.
-* **Visualization Modes**: Live animation, static final-frame rendering, or exporting to `.gif`.
-* **Advanced Physics**: 
-  * Toggle between Periodic Boundary Conditions (PBC) and Hard Walls.
-  * Continuous nucleation (JMAK kinetics) support.
-* **Custom Colormap**: Generates visually distinct, pastel-toned colors for an unlimited number of grains.
+## ✨ Core Features
 
-## 🚀 How to Start
+* **Dual Interface**: Run via Command Line (CLI) for batch processing or through the interactive **Streamlit Web App**.
+* **High Performance**: Pure NumPy tensor operations (no nested `for` loops) using the Moore neighborhood.
+* **Advanced Physics Engine**: 
+  * **Boundary Mobility (Temperature)**: Stochastic cellular automata approach for grain growth.
+  * **Zener Pinning**: Simulate insoluble particles or nanopores that restrict boundary movement.
+  * **JMAK Kinetics**: Continuous nucleation of new grains during the cooling process.
+  * **Boundary Conditions**: Toggle between Periodic Boundary Conditions (PBC) and Hard Walls.
 
-1. Install the required dependencies:
+## 🚀 How to Run
+
+### 1. Installation
+Clone the repository and install the required dependencies:
 ```bash
 pip install -r requirements.txt
+pip install streamlit
 ```
 
-2. Run the simulation using the command line. 
-
-### Basic Usage
-Run with default parameters (200x200 grid, 50 initial grains, live animation):
+### 2. Web Interface
+Launch the interactive dashboard to adjust parameters in real-time and export structures:
 ```bash
-python grain_growth.py
+streamlit run app.py
 ```
 
-### CLI Arguments
+### 3. Command Line Interface (CLI)
+For background generation or headless environments.
 
-You can customize the simulation using the following flags:
-
-* `--length` (int): Length of the grid (default: 200).
-* `--width` (int): Width of the grid (default: 200).
-* `--grains` (int): Number of starting crystallization grains (default: 50).
-* `--mode` (str): Visualization mode. Choose from `animate`, `static`, or `save` (default: `animate`).
-* `--file_name` (str): Name of the output file if mode is `save` (default: `grains.gif`).
-* `--pbc`: Flag to enable Periodic Boundary Conditions. If not passed, hard boundaries are used.
-* `--nucl_rate` (int): Number of new grains spawning at each time step (default: 0).
-
-### 💡 Cool Examples
-
-**1. Heavy Continuous Nucleation (Snowflake effect):**
+**Basic Run (Live Animation):**
 ```bash
-python grain_growth.py --length 300 --width 300 --grains 5 --nucl_rate 3
+python grain_growth.py --length 200 --width 200 --grains 50 --mobility 0.8
 ```
 
-**2. Fast Background Calculation & Save to GIF:**
+**Generate Final Structure with Nanopores (Static PNG):**
 ```bash
-python grain_growth.py --mode save --length 150 --width 150 --file_name my_sim.gif
+python grain_growth.py --mode static --length 300 --width 300 --pinning 0.05 --pbc
 ```
 
-**3. Large Grid Static Render with Periodic Boundaries:**
-```bash
-python grain_growth.py --mode static --length 500 --width 500 --grains 200 --pbc
-```
+**CLI Arguments:**
+* `--length` / `--width` (int): Grid dimensions.
+* `--grains` (int): Number of initial grains.
+* `--mode` (str): `animate` (default), `static`, or `save`.
+* `--pbc`: Flag to enable Periodic Boundary Conditions.
+* `--nucl_rate` (int): Number of new grains spawning per step.
+* `--pinning` (float): Fraction of pinning particles/pores (0.0 to 1.0).
+* `--mobility` (float): Probability of boundary movement per step (0.0 to 1.0).
+* `--file_name` (str): Name of your file.
+## 🔬 Physics in Action
+*Example of grain growth with Continuous Nucleation:*
+
+![Simulation GIF](assets/ui_result.gif)

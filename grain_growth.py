@@ -13,22 +13,33 @@ class GrainSimulation:
     starting crystalization grains. 
 
     """
-    def __init__(self, length: int, width: int, num_grains: int, pbc: bool, nucl_rate: int):
+    def __init__(self, length: int, width: int, num_grains: int, pbc: bool, nucl_rate: int, pinning: float, mobility: float):
         
         self.length = length
         self.width = width
         self.num_grains = num_grains
         self.pbc = pbc
         self.nucl_rate = nucl_rate
+        self.pinning = pinning
+        self.mobility = mobility
 
         self.field_matr = np.zeros((self.length, self.width), dtype=np.int16)
         self.current_max_id = self.num_grains
+
+        num_stones = int(self.field_matr.size * self.pinning)
+        empty_y, empty_x = np.where(self.field_matr == 0) #ищем все пустые клетки        
+        random_indices = np.random.choice(len(empty_y), size=num_stones, replace=False)
+        chosen_y = empty_y[random_indices]
+        chosen_x = empty_x[random_indices]
+        self.field_matr[chosen_y, chosen_x] = -1
 
         self.seed_grains()
     
         rand_colors = (np.random.rand(1000, 3) + 0.5) / 1.5
         self.my_cmap = ListedColormap(rand_colors)
         self.my_cmap.set_under('white')
+        self.my_cmap.set_bad('black')
+
     def seed_grains(self):  # с ввода получаем сколько зёрен нам надо, и раскидываем их по рандомным координатам сетки
         if self.num_grains > self.field_matr.size:  # проверяем хватит ли места в сетке
             print("Error. Grid is too small for your ambitions. Make bigger grid.")
@@ -95,12 +106,15 @@ class GrainSimulation:
         
         random_dirs = np.random.randint(0, 8, size=(np.shape(self.field_matr)))
         chosen_neighb = np.choose(random_dirs, all_neighb)
+        dice_rolls = np.random.rand(self.length, self.width) #for mobility
 
-        self.field_matr = np.where((empty_mask) & (chosen_neighb > 0), chosen_neighb, self.field_matr)
+
+        self.field_matr = np.where((empty_mask) & (chosen_neighb > 0) & (dice_rolls < self.mobility), chosen_neighb, self.field_matr)
 
     def display(self):
         # Создаем визуальную матрицу и сразу ее рисуем
         vis_matr = np.where(self.field_matr == 0, 0, (self.field_matr % 1000) + 1)
+        vis_matr = np.ma.masked_where(self.field_matr == -1, vis_matr)
         plt.imshow(vis_matr, cmap=self.my_cmap, vmin=0.5, vmax=1000.5)
         plt.show()
 
@@ -109,11 +123,13 @@ class GrainSimulation:
         
         # Для самого первого кадра тоже нужна красивая матрица!
         vis_matr = np.where(self.field_matr == 0, 0, (self.field_matr % 1000) + 1)
+        vis_matr = np.ma.masked_where(self.field_matr == -1, vis_matr)
         img = ax.imshow(vis_matr, cmap=self.my_cmap, vmin=0.5, vmax=1000.5)
 
         def update(frame):
             self.evol_step_vectorized()
             vis_matr = np.where(self.field_matr == 0, 0, (self.field_matr % 1000) + 1)
+            vis_matr = np.ma.masked_where(self.field_matr == -1, vis_matr)
             img.set_data(vis_matr)
             
             if not (0 in self.field_matr):
@@ -127,6 +143,7 @@ class GrainSimulation:
         fig, ax = plt.subplots()
         
         vis_matr = np.where(self.field_matr == 0, 0, (self.field_matr % 1000) + 1)
+        vis_matr = np.ma.masked_where(self.field_matr == -1, vis_matr)
         img = ax.imshow(vis_matr, cmap=self.my_cmap, vmin=0.5, vmax=1000.5)
 
         def frame_gen():
@@ -138,13 +155,26 @@ class GrainSimulation:
         def update(frame):
             self.evol_step_vectorized()
             vis_matr = np.where(self.field_matr == 0, 0, (self.field_matr % 1000) + 1)
+            vis_matr = np.ma.masked_where(self.field_matr == -1, vis_matr)
             img.set_data(vis_matr)
             return [img]
 
         ani = animation.FuncAnimation(fig, update, frames=frame_gen, interval=50, blit=False, cache_frame_data=False)
         ani.save(filename, writer='pillow', fps=15)
 
+
+def restricted_float(x):
+    """Проверяет, что переданное значение - это float в диапазоне от 0.0 до 1.0"""
+    try:
+        x = float(x)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"{x} не является числом")
         
+    if x < 0.0 or x > 1.0:
+        raise argparse.ArgumentTypeError(f"Значение {x} должно быть в диапазоне от 0.0 до 1.0")
+    return x
+
+
 if __name__ == '__main__':
     #парсим параметры CLI при запуске скрипта, чтобы с клавиатуры не вводить
     parser = argparse.ArgumentParser(description='Fast Grain Growth Simulation')
@@ -155,11 +185,13 @@ if __name__ == '__main__':
     parser.add_argument('--file_name', default='grains.gif', type=str, help='Name of your file')
     parser.add_argument('--pbc', action='store_true')
     parser.add_argument('--nucl_rate', type=int, default=0, help='How much new grains will be geberated in each simulations step')
+    parser.add_argument('--pinning', type=restricted_float, default=0.0, help='Fraction of pinning particles (0.0 to 1.0)')
+    parser.add_argument('--mobility', type=restricted_float, default = 1.0, help="Mobility of particles or probability to grow")
 
     args = parser.parse_args()
     if args.length <= 0 or args.width <= 0 or args.grains <= 0:
         parser.error("Size of field and number of grains must be positive numbers")
-    my_sim = GrainSimulation(args.length, args.width, args.grains, args.pbc, args.nucl_rate)
+    my_sim = GrainSimulation(args.length, args.width, args.grains, args.pbc, args.nucl_rate, args.pinning, args.mobility)
 
     start_time = time.time()
 
